@@ -72,25 +72,31 @@
 #if defined(_WIN32) || defined(__CYGWIN__)
 
 WELS_THREAD_ERROR_CODE    WelsMutexInit (WELS_MUTEX*    mutex) {
+#ifndef NO_PTHREADS
   InitializeCriticalSection (mutex);
-
+#endif
   return WELS_THREAD_ERROR_OK;
 }
 
 WELS_THREAD_ERROR_CODE    WelsMutexLock (WELS_MUTEX*    mutex) {
+#ifndef NO_PTHREADS
   EnterCriticalSection (mutex);
-
+#endif
   return WELS_THREAD_ERROR_OK;
 }
 
 WELS_THREAD_ERROR_CODE    WelsMutexUnlock (WELS_MUTEX* mutex) {
+#ifndef NO_PTHREADS
   LeaveCriticalSection (mutex);
+#endif
 
   return WELS_THREAD_ERROR_OK;
 }
 
 WELS_THREAD_ERROR_CODE    WelsMutexDestroy (WELS_MUTEX* mutex) {
+#ifndef NO_PTHREADS
   DeleteCriticalSection (mutex);
+#endif
 
   return WELS_THREAD_ERROR_OK;
 }
@@ -98,19 +104,35 @@ WELS_THREAD_ERROR_CODE    WelsMutexDestroy (WELS_MUTEX* mutex) {
 #else /* _WIN32 */
 
 WELS_THREAD_ERROR_CODE    WelsMutexInit (WELS_MUTEX*    mutex) {
+#ifndef NO_PTHREADS
   return pthread_mutex_init (mutex, NULL);
+#else
+  return WELS_THREAD_ERROR_OK;
+#endif
 }
 
 WELS_THREAD_ERROR_CODE    WelsMutexLock (WELS_MUTEX*    mutex) {
+#ifndef NO_PTHREADS
   return pthread_mutex_lock (mutex);
+#else
+  return WELS_THREAD_ERROR_OK;
+#endif
 }
 
 WELS_THREAD_ERROR_CODE    WelsMutexUnlock (WELS_MUTEX* mutex) {
+#ifndef NO_PTHREADS
   return pthread_mutex_unlock (mutex);
+#else
+  return WELS_THREAD_ERROR_OK;
+#endif
 }
 
 WELS_THREAD_ERROR_CODE    WelsMutexDestroy (WELS_MUTEX* mutex) {
+#ifndef NO_PTHREADS
   return pthread_mutex_destroy (mutex);
+#else
+  return WELS_THREAD_ERROR_OK;
+#endif
 }
 
 #endif /* !_WIN32 */
@@ -184,12 +206,16 @@ void WelsSleep (uint32_t dwMilliSecond) {
 
 WELS_THREAD_ERROR_CODE    WelsThreadCreate (WELS_THREAD_HANDLE* thread,  LPWELS_THREAD_ROUTINE  routine,
     void* arg, WELS_THREAD_ATTR attr) {
+#ifndef NO_PTHREADS
   WELS_THREAD_HANDLE   h = CreateThread (NULL, 0, routine, arg, 0, NULL);
 
   if (h == NULL) {
     return WELS_THREAD_ERROR_GENERAL;
   }
   * thread = h;
+#else
+  *thread = 1;
+#endif  // NO_PTHREADS
 
   return WELS_THREAD_ERROR_OK;
 }
@@ -201,15 +227,21 @@ WELS_THREAD_ERROR_CODE WelsThreadSetName (const char* thread_name) {
 
 
 WELS_THREAD_ERROR_CODE    WelsThreadJoin (WELS_THREAD_HANDLE  thread) {
+#ifndef NO_PTHREADS
   WaitForSingleObject (thread, INFINITE);
   CloseHandle (thread);
+#endif
 
   return WELS_THREAD_ERROR_OK;
 }
 
 
 WELS_THREAD_HANDLE        WelsThreadSelf() {
+#ifndef NO_PTHREADS
   return GetCurrentThread();
+#else
+  return 1;
+#endif
 }
 
 WELS_THREAD_ERROR_CODE    WelsQueryLogicalProcessInfo (WelsLogicalProcessInfo* pInfo) {
@@ -228,6 +260,7 @@ WELS_THREAD_ERROR_CODE    WelsThreadCreate (WELS_THREAD_HANDLE* thread,  LPWELS_
     void* arg, WELS_THREAD_ATTR attr) {
   WELS_THREAD_ERROR_CODE err = 0;
 
+#ifndef NO_PTHREADS
   pthread_attr_t at;
   err = pthread_attr_init (&at);
   if (err)
@@ -239,10 +272,13 @@ WELS_THREAD_ERROR_CODE    WelsThreadCreate (WELS_THREAD_HANDLE* thread,  LPWELS_
   err = pthread_attr_setschedpolicy (&at, SCHED_FIFO);
   if (err)
     return err;
-#endif
+#endif  // !defined(__ANDROID__) && !defined(__Fuchsia__)
   err = pthread_create (thread, &at, routine, arg);
 
   pthread_attr_destroy (&at);
+#else  // NO_PTHREADS
+  *thread = 1;
+#endif  // NO_PTHREADS
 
   return err;
 }
@@ -259,11 +295,19 @@ WELS_THREAD_ERROR_CODE WelsThreadSetName (const char* thread_name) {
 }
 
 WELS_THREAD_ERROR_CODE    WelsThreadJoin (WELS_THREAD_HANDLE  thread) {
+#ifndef NO_PTHREADS
   return pthread_join (thread, NULL);
+#else
+  return WELS_THREAD_ERROR_OK;
+#endif
 }
 
 WELS_THREAD_HANDLE        WelsThreadSelf() {
+#ifndef NO_PTHREADS
   return pthread_self();
+#else
+  return 1;
+#endif
 }
 
 // unnamed semaphores aren't supported on OS X
