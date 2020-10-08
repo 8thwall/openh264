@@ -367,11 +367,11 @@ int32_t ParamValidation (SLogContext* pLogCtx, SWelsSvcCodingParam* pCfg) {
                iTotalBitrate, pCfg->iTargetBitrate);
       return ENC_RETURN_INVALIDINPUT;
     }
-    if ((pCfg->iRCMode == RC_QUALITY_MODE) || (pCfg->iRCMode == RC_BITRATE_MODE) || (pCfg->iRCMode == RC_TIMESTAMP_MODE))
-      if (!pCfg->bEnableFrameSkip)
-        WelsLog (pLogCtx, WELS_LOG_WARNING,
-                 "bEnableFrameSkip = %d,bitrate can't be controlled for RC_QUALITY_MODE,RC_BITRATE_MODE and RC_TIMESTAMP_MODE without enabling skip frame.",
-                 pCfg->bEnableFrameSkip);
+    // if ((pCfg->iRCMode == RC_QUALITY_MODE) || (pCfg->iRCMode == RC_BITRATE_MODE) || (pCfg->iRCMode == RC_TIMESTAMP_MODE))
+    //   if (!pCfg->bEnableFrameSkip)
+    //     WelsLog (pLogCtx, WELS_LOG_WARNING,
+    //              "bEnableFrameSkip = %d,bitrate can't be controlled for RC_QUALITY_MODE,RC_BITRATE_MODE and RC_TIMESTAMP_MODE without enabling skip frame.",
+    //              pCfg->bEnableFrameSkip);
     if ((pCfg->iMaxQp <= 0) || (pCfg->iMinQp <= 0)) {
       if (pCfg->iUsageType == SCREEN_CONTENT_REAL_TIME) {
         WelsLog (pLogCtx, WELS_LOG_INFO, "Change QP Range from(%d,%d) to (%d,%d)", pCfg->iMinQp, pCfg->iMaxQp, MIN_SCREEN_QP,
