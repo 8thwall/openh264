@@ -103,6 +103,54 @@ WELS_THREAD_ERROR_CODE    WelsMutexDestroy (WELS_MUTEX* mutex) {
 
 #else /* _WIN32 */
 
+WELS_THREAD_ERROR_CODE    WelsCondInit(WELS_COND* cond) {
+#ifndef NO_PTHREADS
+  return pthread_cond_init (cond, NULL);
+#else
+  return WELS_THREAD_ERROR_OK;
+#endif
+}
+
+WELS_THREAD_ERROR_CODE    WelsCondBroadcast(WELS_COND* cond) {
+#ifndef NO_PTHREADS
+  return pthread_cond_broadcast (cond);
+#else
+  return WELS_THREAD_ERROR_OK;
+#endif
+}
+
+WELS_THREAD_ERROR_CODE    WelsCondWait(WELS_COND* cond, WELS_MUTEX* mutex) {
+#ifndef NO_PTHREADS
+  return pthread_cond_wait (cond, mutex);
+#else
+  return WELS_THREAD_ERROR_OK;
+#endif
+}
+
+WELS_THREAD_ERROR_CODE    WelsCondTimedwait(WELS_COND* cond, WELS_MUTEX* mutex, const struct timespec* ts) {
+#ifndef NO_PTHREADS
+  return pthread_cond_timedwait (cond, mutex, ts);
+#else
+  return WELS_THREAD_ERROR_OK;
+#endif
+}
+
+WELS_THREAD_ERROR_CODE    WelsCondSignal(WELS_COND* cond) {
+#ifndef NO_PTHREADS
+  return pthread_cond_signal (cond);
+#else
+  return WELS_THREAD_ERROR_OK;
+#endif
+}
+
+WELS_THREAD_ERROR_CODE    WelsCondDestroy(WELS_COND* cond) {
+#ifndef NO_PTHREADS
+  return pthread_cond_destroy (cond);
+#else
+  return WELS_THREAD_ERROR_OK;
+#endif
+}
+
 WELS_THREAD_ERROR_CODE    WelsMutexInit (WELS_MUTEX*    mutex) {
 #ifndef NO_PTHREADS
   return pthread_mutex_init (mutex, NULL);
