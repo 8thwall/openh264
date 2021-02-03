@@ -152,9 +152,9 @@ static void getTimespecFromTimeout (struct timespec* ts, int32_t timeout) {
   ts->tv_nsec %= 1000000000;
 }
 int EventCreate (SWelsDecEvent* e, int manualReset, int initialState) {
-  if (pthread_mutex_init (& (e->m), NULL))
+  if (WelsMutexInit (& (e->m)))
     return 1;
-  if (pthread_cond_init (& (e->c), NULL))
+  if (WelsCondInit (& (e->c)))
     return 2;
 
   e->isSignaled = initialState;
@@ -164,23 +164,23 @@ int EventCreate (SWelsDecEvent* e, int manualReset, int initialState) {
 }
 
 void EventReset (SWelsDecEvent* e) {
-  pthread_mutex_lock (& (e->m));
+  WelsMutexLock (& (e->m));
   e->isSignaled = 0;
-  pthread_mutex_unlock (& (e->m));
+  WelsMutexUnlock (& (e->m));
 }
 
 void EventPost (SWelsDecEvent* e) {
-  pthread_mutex_lock (& (e->m));
-  pthread_cond_broadcast (& (e->c));
+  WelsMutexLock (& (e->m));
+  WelsCondBroadcast (& (e->c));
   e->isSignaled = 1;
-  pthread_mutex_unlock (& (e->m));
+  WelsMutexUnlock (& (e->m));
 }
 
 int EventWait (SWelsDecEvent* e, int32_t timeout) {
-  pthread_mutex_lock (& (e->m));
+  WelsMutexLock (& (e->m));
   int signaled = e->isSignaled;
   if (timeout == 0) {
-    pthread_mutex_unlock (& (e->m));
+    WelsMutexUnlock (& (e->m));
     if (signaled)
       return WELS_DEC_THREAD_WAIT_SIGNALED;
     else
@@ -190,21 +190,21 @@ int EventWait (SWelsDecEvent* e, int32_t timeout) {
     if (!e->manualReset) {
       e->isSignaled = 0;
     }
-    pthread_mutex_unlock (& (e->m));
+    WelsMutexUnlock (& (e->m));
     return WELS_DEC_THREAD_WAIT_SIGNALED;
   }
   int rc = 0;
   if (timeout == WELS_DEC_THREAD_WAIT_INFINITE || timeout < 0) {
-    rc = pthread_cond_wait (& (e->c), & (e->m));
+    rc = WelsCondWait (& (e->c), & (e->m));
   } else {
     struct timespec ts;
     getTimespecFromTimeout (&ts, timeout);
-    rc = pthread_cond_timedwait (& (e->c), & (e->m), &ts);
+    rc = WelsCondTimedwait (& (e->c), & (e->m), &ts);
   }
   if (!e->manualReset) {
     e->isSignaled = 0;
   }
-  pthread_mutex_unlock (& (e->m));
+  WelsMutexUnlock (& (e->m));
   if (rc == 0)
     return WELS_DEC_THREAD_WAIT_SIGNALED;
   else
@@ -212,14 +212,14 @@ int EventWait (SWelsDecEvent* e, int32_t timeout) {
 }
 
 void EventDestroy (SWelsDecEvent* e) {
-  pthread_mutex_destroy (& (e->m));
-  pthread_cond_destroy (& (e->c));
+  WelsMutexDestroy (& (e->m));
+  WelsCondDestroy (& (e->c));
 }
 
 int SemCreate (SWelsDecSemphore* s, long value, long max) {
   s->v = value;
   s->max = max;
-  if (pthread_mutex_init (& (s->m), NULL))
+  if (WelsMutexInit (& (s->m)))
     return 1;
   const char* event_name = "";
   if (WelsEventOpen (& (s->e), event_name)) {
@@ -229,16 +229,16 @@ int SemCreate (SWelsDecSemphore* s, long value, long max) {
 }
 
 int SemWait (SWelsDecSemphore* s, int32_t timeout) {
-#if defined(__APPLE__)
-  pthread_mutex_lock (& (s->m));
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
+  WelsMutexLock (& (s->m));
 #endif
   int rc = 0;
   if (timeout != 0) {
     while ((s->v) == 0) {
       if (timeout == WELS_DEC_THREAD_WAIT_INFINITE || timeout < 0) {
         // infinite wait until released
-#if defined(__APPLE__)
-        rc = pthread_cond_wait (& (s->e), & (s->m));
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
+        rc = WelsCondWait (& (s->e), & (s->m));
 #else
         rc = sem_wait (s->e);
         if (rc != 0) rc = errno;
@@ -246,8 +246,8 @@ int SemWait (SWelsDecSemphore* s, int32_t timeout) {
       } else {
         struct timespec ts;
         getTimespecFromTimeout (&ts, timeout);
-#if defined(__APPLE__)
-        rc = pthread_cond_timedwait (& (s->e), & (s->m), &ts);
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
+        rc = WelsCondTimedwait (& (s->e), & (s->m), &ts);
 #else
         rc = sem_timedwait (s->e, &ts);
         if (rc != 0) rc = errno;
@@ -271,8 +271,8 @@ int SemWait (SWelsDecSemphore* s, int32_t timeout) {
       rc = 1;
     }
   }
-#if defined(__APPLE__)
-  pthread_mutex_unlock (& (s->m));
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
+  WelsMutexUnlock (& (s->m));
 #endif
   // set return value
   if (rc == 0)
@@ -283,13 +283,13 @@ int SemWait (SWelsDecSemphore* s, int32_t timeout) {
 
 void SemRelease (SWelsDecSemphore* s, long* o_pPrevCount) {
   long prevcount;
-#ifdef __APPLE__
-  pthread_mutex_lock (& (s->m));
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
+  WelsMutexLock (& (s->m));
   prevcount = s->v;
   if (s->v < s->max)
     s->v += 1;
-  pthread_cond_signal (& (s->e));
-  pthread_mutex_unlock (& (s->m));
+  WelsCondSignal (& (s->e));
+  WelsMutexUnlock (& (s->m));
 #else
   prevcount = s->v;
   if (s->v < s->max)
@@ -302,7 +302,7 @@ void SemRelease (SWelsDecSemphore* s, long* o_pPrevCount) {
 }
 
 void SemDestroy (SWelsDecSemphore* s) {
-  pthread_mutex_destroy (& (s->m));
+  WelsMutexDestroy (& (s->m));
   const char* event_name = "";
   WelsEventClose (& (s->e), event_name);
 }

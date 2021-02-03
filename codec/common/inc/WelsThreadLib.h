@@ -95,15 +95,19 @@ typedef    HANDLE                    WELS_EVENT;
 #ifndef NO_PTHREADS
 typedef   pthread_t    WELS_THREAD_HANDLE;
 typedef   pthread_mutex_t           WELS_MUTEX;
+typedef   pthread_mutexattr_t   WELS_MUTEX_ATTR;
+typedef   pthread_cond_t   WELS_COND;
 #else
 typedef int WELS_THREAD_HANDLE;
 typedef int WELS_MUTEX;
+typedef int WELS_MUTEX_ATTR;
+typedef int WELS_COND;
 #endif  // NO_PTHREADS
 
 typedef  void* (*LPWELS_THREAD_ROUTINE) (void*);
 
-#ifdef __APPLE__
-typedef   pthread_cond_t            WELS_EVENT;
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
+typedef   WELS_COND            WELS_EVENT;
 #else
 typedef   sem_t*                    WELS_EVENT;
 #endif
@@ -125,6 +129,13 @@ typedef  struct _WelsLogicalProcessorInfo {
 #define    WELS_THREAD_ERROR_WAIT_OBJECT_0              0
 #define    WELS_THREAD_ERROR_WAIT_TIMEOUT               ((uint32_t)0x00000102L)
 #define    WELS_THREAD_ERROR_WAIT_FAILED                WELS_THREAD_ERROR_GENERAL
+
+WELS_THREAD_ERROR_CODE    WelsCondInit(WELS_COND* cond);
+WELS_THREAD_ERROR_CODE    WelsCondBroadcast(WELS_COND* cond);
+WELS_THREAD_ERROR_CODE    WelsCondWait(WELS_COND* cond, WELS_MUTEX* mutex);
+WELS_THREAD_ERROR_CODE    WelsCondTimedwait(WELS_COND* cond, WELS_MUTEX* mutex, const struct timespec* ts);
+WELS_THREAD_ERROR_CODE    WelsCondSignal(WELS_COND* cond);
+WELS_THREAD_ERROR_CODE    WelsCondDestroy(WELS_COND* cond);
 
 WELS_THREAD_ERROR_CODE    WelsMutexInit (WELS_MUTEX*    mutex);
 WELS_THREAD_ERROR_CODE    WelsMutexLock (WELS_MUTEX*    mutex);
