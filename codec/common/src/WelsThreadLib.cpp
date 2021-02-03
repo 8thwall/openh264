@@ -361,8 +361,8 @@ WELS_THREAD_HANDLE        WelsThreadSelf() {
 // unnamed semaphores aren't supported on OS X
 
 WELS_THREAD_ERROR_CODE    WelsEventOpen (WELS_EVENT* p_event, const char* event_name) {
-#ifdef __APPLE__
-  WELS_THREAD_ERROR_CODE err= pthread_cond_init (p_event, NULL);
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
+  WELS_THREAD_ERROR_CODE err= WelsCondInit (p_event);
   return err;
 #else
   WELS_EVENT event = (WELS_EVENT) malloc (sizeof (*event));
@@ -382,8 +382,8 @@ WELS_THREAD_ERROR_CODE    WelsEventOpen (WELS_EVENT* p_event, const char* event_
 }
 WELS_THREAD_ERROR_CODE    WelsEventClose (WELS_EVENT* event, const char* event_name) {
   //printf("event_close:%x, %s\n", event, event_name);
-#ifdef __APPLE__
-  WELS_THREAD_ERROR_CODE err = pthread_cond_destroy (event);
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
+  WELS_THREAD_ERROR_CODE err = WelsCondDestroy (event);
   return err;
 #else
   WELS_THREAD_ERROR_CODE err = sem_destroy (*event); // match with sem_init
@@ -400,12 +400,12 @@ void WelsSleep (uint32_t dwMilliSecond) {
 WELS_THREAD_ERROR_CODE   WelsEventSignal (WELS_EVENT* event, WELS_MUTEX *pMutex, int* iCondition) {
   WELS_THREAD_ERROR_CODE err = 0;
   //fprintf( stderr, "before signal it, event=%x iCondition= %d..\n", event, *iCondition );
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
   WelsMutexLock (pMutex);
   (*iCondition) --;
   WelsMutexUnlock (pMutex);
   if ((*iCondition) <= 0) {
-  err = pthread_cond_signal (event);
+  err = WelsCondSignal (event);
   //fprintf( stderr, "signal it, event=%x iCondition= %d..\n",event, *iCondition );
 
   }
@@ -426,12 +426,12 @@ WELS_THREAD_ERROR_CODE   WelsEventSignal (WELS_EVENT* event, WELS_MUTEX *pMutex,
 }
 
 WELS_THREAD_ERROR_CODE WelsEventWait (WELS_EVENT* event, WELS_MUTEX* pMutex, int& iCondition) {
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
   int err = 0;
   WelsMutexLock(pMutex);
   //fprintf( stderr, "WelsEventWait event %x %d..\n", event, iCondition );
   while (iCondition>0) {
-    err = pthread_cond_wait (event, pMutex);
+    err = WelsCondWait (event, pMutex);
   }
   WelsMutexUnlock(pMutex);
   return err;
@@ -443,8 +443,8 @@ WELS_THREAD_ERROR_CODE WelsEventWait (WELS_EVENT* event, WELS_MUTEX* pMutex, int
 WELS_THREAD_ERROR_CODE    WelsEventWaitWithTimeOut (WELS_EVENT* event, uint32_t dwMilliseconds, WELS_MUTEX* pMutex) {
 
   if (dwMilliseconds != (uint32_t) - 1) {
-#if defined(__APPLE__)
-    return pthread_cond_wait (event, pMutex);
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
+    return WelsCondWait (event, pMutex);
 #else
     return sem_wait (*event);
 #endif
@@ -458,8 +458,8 @@ WELS_THREAD_ERROR_CODE    WelsEventWaitWithTimeOut (WELS_EVENT* event, uint32_t 
     ts.tv_sec = tv.tv_sec + ts.tv_nsec / 1000000000;
     ts.tv_nsec %= 1000000000;
 
-#if defined(__APPLE__)
-    return pthread_cond_timedwait (event, pMutex, &ts);
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
+    return WelsCondTimedwait (event, pMutex, &ts);
 #else
     return sem_timedwait (*event, &ts);
 #endif
@@ -474,14 +474,14 @@ WELS_THREAD_ERROR_CODE    WelsMultipleEventsWaitSingleBlocking (uint32_t nCount,
 
   if (nCount == 0)
     return WELS_THREAD_ERROR_WAIT_FAILED;
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
   if (master_event != NULL) {
     // This design relies on the events actually being semaphores;
     // if multiple events in the list have been signalled, the master
     // event should have a similar count (events in windows can't keep
     // track of the actual count, but the master event isn't needed there
     // since it uses WaitForMultipleObjects).
-    int32_t err = pthread_cond_wait (master_event, pMutex);
+    int32_t err = WelsCondWait (master_event, pMutex);
     if (err != WELS_THREAD_ERROR_OK)
       return err;
     uiAccessTime = 0; // no blocking, just quickly loop through all to find the one that was signalled
@@ -498,7 +498,7 @@ WELS_THREAD_ERROR_CODE    WelsMultipleEventsWaitSingleBlocking (uint32_t nCount,
        * pthread_cond_timedwait() might be better choice if need
        */
       do {
-        err = pthread_cond_wait (&event_list[nIdx], pMutex);
+        err = WelsCondWait (&event_list[nIdx], pMutex);
         if (WELS_THREAD_ERROR_OK == err)
           return WELS_THREAD_ERROR_WAIT_OBJECT_0 + nIdx;
         else if (wait_count > 0 || uiAccessTime == 0)

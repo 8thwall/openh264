@@ -106,7 +106,7 @@ typedef int WELS_COND;
 
 typedef  void* (*LPWELS_THREAD_ROUTINE) (void*);
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
 typedef   WELS_COND            WELS_EVENT;
 #else
 typedef   sem_t*                    WELS_EVENT;

@@ -229,7 +229,7 @@ int SemCreate (SWelsDecSemphore* s, long value, long max) {
 }
 
 int SemWait (SWelsDecSemphore* s, int32_t timeout) {
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
   WelsMutexLock (& (s->m));
 #endif
   int rc = 0;
@@ -237,7 +237,7 @@ int SemWait (SWelsDecSemphore* s, int32_t timeout) {
     while ((s->v) == 0) {
       if (timeout == WELS_DEC_THREAD_WAIT_INFINITE || timeout < 0) {
         // infinite wait until released
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
         rc = WelsCondWait (& (s->e), & (s->m));
 #else
         rc = sem_wait (s->e);
@@ -246,7 +246,7 @@ int SemWait (SWelsDecSemphore* s, int32_t timeout) {
       } else {
         struct timespec ts;
         getTimespecFromTimeout (&ts, timeout);
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
         rc = WelsCondTimedwait (& (s->e), & (s->m), &ts);
 #else
         rc = sem_timedwait (s->e, &ts);
@@ -271,7 +271,7 @@ int SemWait (SWelsDecSemphore* s, int32_t timeout) {
       rc = 1;
     }
   }
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
   WelsMutexUnlock (& (s->m));
 #endif
   // set return value
@@ -283,7 +283,7 @@ int SemWait (SWelsDecSemphore* s, int32_t timeout) {
 
 void SemRelease (SWelsDecSemphore* s, long* o_pPrevCount) {
   long prevcount;
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
   WelsMutexLock (& (s->m));
   prevcount = s->v;
   if (s->v < s->max)
